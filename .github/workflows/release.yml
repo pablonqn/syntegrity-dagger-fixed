@@ -27,7 +27,7 @@ jobs:
       release-type: ${{ steps.check.outputs.release-type }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         
@@ -70,7 +70,7 @@ jobs:
     if: needs.check-release.outputs.should-release == 'true'
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
