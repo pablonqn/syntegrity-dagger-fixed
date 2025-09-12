@@ -1,79 +1,33 @@
-name: Release
+name: Release Pipeline
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
     inputs:
-      release_type:
-        description: 'Release type'
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
         required: true
-        default: 'patch'
-        type: choice
-        options:
-        - patch
-        - minor
-        - major
+        default: 'v1.0.0'
 
 env:
-  GO_VERSION: '1.25.1'
+  GO_VERSION: '1.24.2'
+  BINARY_NAME: 'syntegrity-dagger'
+  RELEASE_DIR: 'release'
 
 jobs:
-  # Check if this is a release-worthy commit
-  check-release:
+  # Job 1: Determine version and create tag
+  version:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.check.outputs.should-release }}
-      release-type: ${{ steps.check.outputs.release-type }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
       with:
-        fetch-depth: 0
-        
-    - name: Check if should release
-      id: check
-      run: |
-        # Check if this is a manual dispatch
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "should-release=true" >> $GITHUB_OUTPUT
-          echo "release-type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        # Check if this is a push to main
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          # Check if commit message contains release keywords
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          if echo "$COMMIT_MSG" | grep -qiE "(feat|feature|minor)"; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=minor" >> $GITHUB_OUTPUT
-          elif echo "$COMMIT_MSG" | grep -qiE "(fix|hotfix|patch|bug)"; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=patch" >> $GITHUB_OUTPUT
-          elif echo "$COMMIT_MSG" | grep -qiE "(breaking|major)"; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=major" >> $GITHUB_OUTPUT
-          else
-            echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "release-type=none" >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "should-release=false" >> $GITHUB_OUTPUT
-          echo "release-type=none" >> $GITHUB_OUTPUT
-        fi
-
-  # Create release
-  create-release:
-    runs-on: ubuntu-latest
-    needs: check-release
-    if: needs.check-release.outputs.should-release == 'true'
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
+        fetch-depth: 0  # Fetch all history for changelog generation
         
     - name: Set up Go
       uses: actions/setup-go@v6
@@ -81,122 +35,210 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
         
     - name: Configure Git
-      env:
-        ORG_CHECKOUT_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        # Configure Git to use token for authentication
-        git config --local url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         
-    - name: Get current version
-      id: current-version
+    - name: Determine version
+      id: version
       run: |
-        # Get the latest tag
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "current-version=$LATEST_TAG" >> $GITHUB_OUTPUT
-        echo "Current version: $LATEST_TAG"
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          # Auto-increment version based on previous tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version numbers
+          VERSION_NUM=$(echo $LATEST_TAG | sed 's/v//')
+          MAJOR=$(echo $VERSION_NUM | cut -d. -f1)
+          MINOR=$(echo $VERSION_NUM | cut -d. -f2)
+          PATCH=$(echo $VERSION_NUM | cut -d. -f3)
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+        fi
         
-    - name: Calculate next version
-      id: next-version
-      run: |
-        CURRENT_VERSION="${{ steps.current-version.outputs.current-version }}"
-        RELEASE_TYPE="${{ needs.check-release.outputs.release-type }}"
-        
-        # Remove 'v' prefix and split version
-        VERSION=${CURRENT_VERSION#v}
-        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-        
-        # Calculate next version based on release type
-        case $RELEASE_TYPE in
-          major)
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-            ;;
-          minor)
-            MINOR=$((MINOR + 1))
-            PATCH=0
-            ;;
-          patch)
-            PATCH=$((PATCH + 1))
-            ;;
-        esac
-        
-        NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-        echo "next-version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-        echo "Next version: $NEXT_VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$VERSION" >> $GITHUB_OUTPUT
+        echo "🎯 Determined version: $VERSION"
         
     - name: Generate changelog
       id: changelog
       run: |
-        NEXT_VERSION="${{ steps.next-version.outputs.next-version }}"
-        CURRENT_VERSION="${{ steps.current-version.outputs.current-version }}"
+        # Generate changelog from git commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
         
-        # Generate changelog from commits
-        echo "## Changes in $NEXT_VERSION" > CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        
-        # Get commits since last tag
-        if [ "$CURRENT_VERSION" = "v0.0.0" ]; then
-          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        if [[ -n "$LAST_TAG" ]]; then
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD)
         else
-          COMMITS=$(git log $CURRENT_VERSION..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --max-count=20)
         fi
         
-        if [ -n "$COMMITS" ]; then
-          echo "$COMMITS" >> CHANGELOG.md
-        else
-          echo "- No changes detected" >> CHANGELOG.md
-        fi
+        # Create changelog file
+        cat > CHANGELOG.md << EOF
+        # Changelog - ${{ steps.version.outputs.version }}
         
-        echo "" >> CHANGELOG.md
-        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$CURRENT_VERSION...$NEXT_VERSION" >> CHANGELOG.md
+        ## Changes in this release:
+        $CHANGELOG
         
-        # Output changelog for release notes
+        ## Full Changelog
+        https://github.com/${{ github.repository }}/compare/$LAST_TAG...${{ steps.version.outputs.tag }}
+        EOF
+        
         echo "changelog<<EOF" >> $GITHUB_OUTPUT
         cat CHANGELOG.md >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
+        echo "📝 Generated changelog"
+        
     - name: Create and push tag
+      run: |
+        git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+        git push origin "${{ steps.version.outputs.tag }}"
+        echo "🏷️ Created and pushed tag: ${{ steps.version.outputs.tag }}"
+
+  # Job 2: Build binaries for multiple platforms
+  build:
+    runs-on: ubuntu-latest
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: ""
+          - os: linux
+            arch: arm64
+            ext: ""
+          - os: darwin
+            arch: amd64
+            ext: ""
+          - os: darwin
+            arch: arm64
+            ext: ""
+          - os: windows
+            arch: amd64
+            ext: ".exe"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: Configure Git and Go for private repos
       env:
         ORG_CHECKOUT_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}
       run: |
-        NEXT_VERSION="${{ steps.next-version.outputs.next-version }}"
+        # Configure Go to treat getsyntegrity repos as private
+        go env -w GOPRIVATE=github.com/getsyntegrity/*,gitlab.com/syntegrity/*
+        go env -w GONOPROXY=github.com/getsyntegrity/*,gitlab.com/syntegrity/*
+        go env -w GONOSUMDB=github.com/getsyntegrity/*,gitlab.com/syntegrity/*
+        # Create .netrc file for authentication
+        echo "machine github.com" > ~/.netrc
+        echo "login x-access-token" >> ~/.netrc
+        echo "password ${{ secrets.ORG_CHECKOUT_TOKEN }}" >> ~/.netrc
+        chmod 600 ~/.netrc
+        # Configure Git authentication
+        git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+        git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
         
-        # Verify token permissions
-        echo "Testing token permissions..."
-        git ls-remote --heads origin main || echo "Warning: Could not access main branch"
-        
-        # Create tag
-        git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
-        
-        # Push tag with explicit authentication
-        git push https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/${{ github.repository }}.git "$NEXT_VERSION"
-        
-    - name: Create Release
-      uses: actions/create-release@v1
+    - name: Download dependencies
+      run: go mod download
+      
+    - name: Build binary
       env:
-        GITHUB_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+        CGO_ENABLED: 0
+      run: |
+        OUTPUT_NAME="${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o "$OUTPUT_NAME" .
+        echo "Built: $OUTPUT_NAME"
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        tag_name: ${{ steps.next-version.outputs.next-version }}
-        release_name: Release ${{ steps.next-version.outputs.next-version }}
-        body: ${{ steps.changelog.outputs.changelog }}
+        name: binary-${{ matrix.os }}-${{ matrix.arch }}
+        path: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+
+  # Job 3: Create GitHub Release
+  release:
+    runs-on: ubuntu-latest
+    needs: [version, build]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Create release directory
+      run: |
+        mkdir -p ${{ env.RELEASE_DIR }}
+        # Move all binaries to release directory
+        find . -name "${{ env.BINARY_NAME }}-*" -exec mv {} ${{ env.RELEASE_DIR }}/ \;
+        
+    - name: Generate checksums
+      run: |
+        cd ${{ env.RELEASE_DIR }}
+        sha256sum * > checksums.txt
+        echo "Generated checksums:"
+        cat checksums.txt
+        
+    - name: Create release notes
+      run: |
+        cat > release-notes.md << EOF
+        # Release ${{ needs.version.outputs.version }}
+        
+        ## 📦 Binaries
+        This release includes pre-compiled binaries for multiple platforms:
+        
+        - **Linux AMD64**: \`${{ env.BINARY_NAME }}-linux-amd64\`
+        - **Linux ARM64**: \`${{ env.BINARY_NAME }}-linux-arm64\`
+        - **macOS AMD64**: \`${{ env.BINARY_NAME }}-darwin-amd64\`
+        - **macOS ARM64**: \`${{ env.BINARY_NAME }}-darwin-arm64\`
+        - **Windows AMD64**: \`${{ env.BINARY_NAME }}-windows-amd64.exe\`
+        
+        ## 🔧 Installation
+        \`\`\`bash
+        # Download the appropriate binary for your platform
+        curl -L https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/${{ env.BINARY_NAME }}-linux-amd64 -o ${{ env.BINARY_NAME }}
+        chmod +x ${{ env.BINARY_NAME }}
+        \`\`\`
+        
+        ## 📋 Changelog
+        ${{ needs.version.outputs.changelog }}
+        
+        ## 🔗 Shared Library Usage
+        Other services can use this release as a shared library:
+        \`\`\`bash
+        # Download and use in CI/CD pipelines
+        curl -L https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/${{ env.BINARY_NAME }}-linux-amd64 -o ${{ env.BINARY_NAME }}
+        chmod +x ${{ env.BINARY_NAME }}
+        ./${{ env.BINARY_NAME }} --help
+        \`\`\`
+        EOF
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ needs.version.outputs.tag }}
+        name: Release ${{ needs.version.outputs.tag }}
+        body_path: release-notes.md
+        files: |
+          ${{ env.RELEASE_DIR }}/*
         draft: false
         prerelease: false
-        
-    - name: Build and upload release assets
-      run: |
-        NEXT_VERSION="${{ steps.next-version.outputs.next-version }}"
-        
-        # Build for multiple platforms
-        GOOS=linux GOARCH=amd64 go build -o go-kit-linux-amd64 ./...
-        GOOS=darwin GOARCH=amd64 go build -o go-kit-darwin-amd64 ./...
-        GOOS=windows GOARCH=amd64 go build -o go-kit-windows-amd64.exe ./...
-        
-        # Upload assets to release
-        gh release upload "$NEXT_VERSION" go-kit-linux-amd64
-        gh release upload "$NEXT_VERSION" go-kit-darwin-amd64  
-        gh release upload "$NEXT_VERSION" go-kit-windows-amd64.exe
       env:
-        GITHUB_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Update latest symlink
+      run: |
+        # Create a 'latest' release for easy access
+        echo "🔗 Release created: https://github.com/${{ github.repository }}/releases/tag/${{ needs.version.outputs.tag }}"
+        echo "📥 Direct download: https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/${{ env.BINARY_NAME }}-linux-amd64"
