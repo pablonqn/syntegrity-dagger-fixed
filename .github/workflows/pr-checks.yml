@@ -48,6 +48,12 @@ jobs:
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
         
+    - name: Clean Go module cache
+      run: |
+        # Clean any existing module cache to avoid conflicts
+        rm -rf ~/go/pkg/mod
+        mkdir -p ~/go/pkg/mod
+        
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
@@ -97,6 +103,12 @@ jobs:
         # Configure Git authentication
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
+        
+    - name: Clean Go module cache
+      run: |
+        # Clean any existing module cache to avoid conflicts
+        rm -rf ~/go/pkg/mod
+        mkdir -p ~/go/pkg/mod
         
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -170,6 +182,12 @@ jobs:
         # Configure Git authentication
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
+        
+    - name: Clean Go module cache
+      run: |
+        # Clean any existing module cache to avoid conflicts
+        rm -rf ~/go/pkg/mod
+        mkdir -p ~/go/pkg/mod
         
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -276,6 +294,12 @@ jobs:
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
         
+    - name: Clean Go module cache
+      run: |
+        # Clean any existing module cache to avoid conflicts
+        rm -rf ~/go/pkg/mod
+        mkdir -p ~/go/pkg/mod
+        
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
@@ -329,6 +353,12 @@ jobs:
         # Configure Git authentication
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
+        
+    - name: Clean Go module cache
+      run: |
+        # Clean any existing module cache to avoid conflicts
+        rm -rf ~/go/pkg/mod
+        mkdir -p ~/go/pkg/mod
         
     - name: Cache Go modules
       uses: actions/cache@v4
