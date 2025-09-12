@@ -19,6 +19,7 @@ env:
   GO_VERSION: '1.24.2'
   BINARY_NAME: 'syntegrity-dagger'
   RELEASE_DIR: 'release'
+
 jobs:
   # Job 1: Determine version and create tag
   version:
