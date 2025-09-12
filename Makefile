@@ -31,7 +31,7 @@ CYAN := \033[0;36m
 WHITE := \033[1;37m
 NC := \033[0m # No Color
 
-.PHONY: all build clean test deps lint lint-fix tools-install release release-snapshot release-dry-run help coverage coverage-html coverage-report coverage-package coverage-file coverage-summary coverage-threshold coverage-100 local-run pipeline-local
+.PHONY: all build clean test deps lint lint-fix tools-install release release-snapshot release-dry-run help coverage coverage-html coverage-report coverage-package coverage-file coverage-summary coverage-threshold coverage-100 local-run pipeline-local build-release build-all-platforms
 
 # Help target
 .PHONY: help
@@ -155,8 +155,22 @@ vet: ## Run go vet
 	$(GOCMD) vet ./...
 	@echo -e "$(GREEN)✅ Go vet completed$(NC)"
 
+# Security check
+security: ## Run security vulnerability check
+	@echo -e "$(BLUE)Running security vulnerability check...$(NC)"
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
+	@govulncheck ./... | tee vuln_report.txt
+	@if grep -q "Vulnerabilities found" vuln_report.txt; then \
+		echo -e "$(RED)❌ Security vulnerabilities detected! Please update dependencies.$(NC)"; \
+		cat vuln_report.txt; \
+		exit 1; \
+	else \
+		echo -e "$(GREEN)✅ No security vulnerabilities found.$(NC)"; \
+	fi
+	@rm -f vuln_report.txt
+
 # Run all code quality checks
-quality: fmt vet lint test ## Run all code quality checks (fmt, vet, lint, test)
+quality: fmt vet lint test security ## Run all code quality checks (fmt, vet, lint, test, security)
 
 # Coverage targets
 coverage: ## Generate comprehensive ASCII coverage report with threshold validation
@@ -424,3 +438,35 @@ pipeline-status: ## Show pipeline status and available steps
 	else \
 		echo -e "$(YELLOW)⚠️  Binary not built. Run 'make build' first$(NC)"; \
 	fi
+
+# Release build targets
+build-release: ## Build release binary with version info
+	@echo -e "$(BLUE)🔨 Building release binary...$(NC)"
+	@mkdir -p release
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	$(GOBUILD) -ldflags="-X main.Version=$$VERSION -X main.BuildTime=$$BUILD_TIME -X main.GitCommit=$$GIT_COMMIT" -o release/$(BINARY_NAME) .
+	@echo -e "$(GREEN)✅ Release binary built: release/$(BINARY_NAME)$(NC)"
+	@echo -e "$(CYAN)Version: $$(./release/$(BINARY_NAME) --version)$(NC)"
+
+build-all-platforms: ## Build binaries for all supported platforms
+	@echo -e "$(BLUE)🔨 Building binaries for all platforms...$(NC)"
+	@mkdir -p release
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	LDFLAGS="-X main.Version=$$VERSION -X main.BuildTime=$$BUILD_TIME -X main.GitCommit=$$GIT_COMMIT"; \
+	echo "Building for Linux AMD64..."; \
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="$$LDFLAGS" -o release/$(BINARY_NAME)-linux-amd64 .; \
+	echo "Building for Linux ARM64..."; \
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 $(GOBUILD) -ldflags="$$LDFLAGS" -o release/$(BINARY_NAME)-linux-arm64 .; \
+	echo "Building for macOS AMD64..."; \
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="$$LDFLAGS" -o release/$(BINARY_NAME)-darwin-amd64 .; \
+	echo "Building for macOS ARM64..."; \
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 $(GOBUILD) -ldflags="$$LDFLAGS" -o release/$(BINARY_NAME)-darwin-arm64 .; \
+	echo "Building for Windows AMD64..."; \
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="$$LDFLAGS" -o release/$(BINARY_NAME)-windows-amd64.exe .; \
+	echo -e "$(GREEN)✅ All platform binaries built in release/ directory$(NC)"
+	@echo -e "$(CYAN)Generated files:$(NC)"
+	@ls -la release/
