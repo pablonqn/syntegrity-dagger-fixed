@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"dagger.io/dagger"
-	gokitlogger "github.com/getsyntegrity/go-kit-logger/pkg/logger"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines"
 	"github.com/getsyntegrity/syntegrity-dagger/mocks"
@@ -996,7 +997,7 @@ func TestContainer_registerStepComponents_Execution(t *testing.T) {
 
 	// Register required dependencies first
 	container.Register("logger", func() (any, error) {
-		logger := gokitlogger.NewLogger()
+		logger := slog.Default()
 		return &LoggerAdapter{logger: logger}, nil
 	})
 	container.Register("daggerClient", func() (any, error) {

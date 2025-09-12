@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"sync"
 	"time"
 
 	"dagger.io/dagger"
-	gokitlogger "github.com/getsyntegrity/go-kit-logger/pkg/logger"
 
 	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines"
@@ -25,9 +26,9 @@ var (
 	ErrInvalidConfiguration       = errors.New("invalid configuration")
 )
 
-// LoggerAdapter adapts go-kit-logger to interfaces.Logger
+// LoggerAdapter adapts slog to interfaces.Logger
 type LoggerAdapter struct {
-	logger gokitlogger.Logger
+	logger *slog.Logger
 }
 
 // Debug logs a debug message
@@ -204,20 +205,19 @@ func (c *Container) registerSecurityComponents() {
 }
 
 // CreateLogger creates a new logger instance using the configuration.
-func (c *Container) CreateLogger() gokitlogger.Logger {
+func (c *Container) CreateLogger() *slog.Logger {
 	loggingConfig := c.config.Logging()
-	return gokitlogger.New(gokitlogger.Config{
-		Level:  loggingConfig.Level,
-		Format: loggingConfig.Format,
-		GlobalFields: map[string]string{
-			"service": "syntegrity-dagger",
-		},
-		Sampling: gokitlogger.SamplingConfig{
-			Enabled:     loggingConfig.SamplingEnable,
-			Interval:    loggingConfig.SamplingInterval,
-			Probability: loggingConfig.SamplingRate,
-		},
-	})
+
+	// Create a simple slog logger
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+
+	if loggingConfig.Level == "debug" {
+		opts.Level = slog.LevelDebug
+	}
+
+	return slog.New(slog.NewTextHandler(os.Stdout, opts))
 }
 
 // registerLoggingComponents registers logging-related components.

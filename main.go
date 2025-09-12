@@ -8,7 +8,8 @@ import (
 	"os"
 	"runtime"
 
-	kitlog "github.com/getsyntegrity/go-kit-logger/pkg/logger"
+	"log/slog"
+
 	"github.com/getsyntegrity/syntegrity-dagger/internal/app"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/config"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
@@ -62,7 +63,7 @@ func (c *CLI) Run(args []string) error {
 	defer app.Reset()
 
 	// Log successful initialization using the global logger
-	kitlog.L().Info("Syntegrity Dagger initialized successfully",
+	slog.Info("Syntegrity Dagger initialized successfully",
 		"pipeline", flags.pipelineName,
 		"environment", flags.env,
 		"verbose", flags.verbose)
