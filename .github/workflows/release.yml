@@ -80,25 +80,14 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
         
-    - name: Configure Git and Go for private repos
+    - name: Configure Git
       env:
         ORG_CHECKOUT_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}
       run: |
-        # Configure Go to treat getsyntegrity repos as private
-        go env -w GOPRIVATE=github.com/getsyntegrity/*
-        go env -w GONOPROXY=github.com/getsyntegrity/*
-        go env -w GONOSUMDB=github.com/getsyntegrity/*
-        # Create .netrc file for authentication
-        echo "machine github.com" > ~/.netrc
-        echo "login x-access-token" >> ~/.netrc
-        echo "password ${{ secrets.ORG_CHECKOUT_TOKEN }}" >> ~/.netrc
-        chmod 600 ~/.netrc
-        # Configure Git authentication
-        git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-        git config --global url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "git@github.com:"
-        # Configure Git user
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        # Configure Git to use token for authentication
+        git config --local url."https://x-access-token:${{ secrets.ORG_CHECKOUT_TOKEN }}@github.com/".insteadOf "https://github.com/"
         
     - name: Get current version
       id: current-version
@@ -201,15 +190,13 @@ jobs:
         NEXT_VERSION="${{ steps.next-version.outputs.next-version }}"
         
         # Build for multiple platforms
-        GOOS=linux GOARCH=amd64 go build -o syntegrity-dagger-linux-amd64 .
-        GOOS=darwin GOARCH=amd64 go build -o syntegrity-dagger-darwin-amd64 .
-        GOOS=darwin GOARCH=arm64 go build -o syntegrity-dagger-darwin-arm64 .
-        GOOS=windows GOARCH=amd64 go build -o syntegrity-dagger-windows-amd64.exe .
+        GOOS=linux GOARCH=amd64 go build -o go-kit-linux-amd64 ./...
+        GOOS=darwin GOARCH=amd64 go build -o go-kit-darwin-amd64 ./...
+        GOOS=windows GOARCH=amd64 go build -o go-kit-windows-amd64.exe ./...
         
         # Upload assets to release
-        gh release upload "$NEXT_VERSION" syntegrity-dagger-linux-amd64
-        gh release upload "$NEXT_VERSION" syntegrity-dagger-darwin-amd64  
-        gh release upload "$NEXT_VERSION" syntegrity-dagger-darwin-arm64
-        gh release upload "$NEXT_VERSION" syntegrity-dagger-windows-amd64.exe
+        gh release upload "$NEXT_VERSION" go-kit-linux-amd64
+        gh release upload "$NEXT_VERSION" go-kit-darwin-amd64  
+        gh release upload "$NEXT_VERSION" go-kit-windows-amd64.exe
       env:
         GITHUB_TOKEN: ${{ secrets.ORG_CHECKOUT_TOKEN }}

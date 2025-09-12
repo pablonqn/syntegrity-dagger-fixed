@@ -1,49 +1,69 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
 version: 2
+registries:
+  github-ep:
+    type: git
+    url: https://github.com
+    username: x-access-token
+    password: ${{secrets.ORG_CHECKOUT_TOKEN}}
+
 updates:
-  # Enable version updates for Go modules
+  # Security updates - daily
   - package-ecosystem: "gomod"
     directory: "/"
+    target-branch: "main"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "getsyntegrity/team"
-    assignees:
-      - "getsyntegrity/team"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "go"
-    ignore:
-      # Ignore major version updates for critical dependencies
-      - dependency-name: "dagger.io/dagger"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "github.com/onsi/ginkgo/v2"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "github.com/onsi/gomega"
-        update-types: ["version-update:semver-major"]
-
-  # Enable version updates for GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "UTC"
+      interval: "daily"
     open-pull-requests-limit: 5
-    reviewers:
-      - "getsyntegrity/team"
-    assignees:
-      - "getsyntegrity/team"
-    commit-message:
-      prefix: "ci"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "github-actions"
+    registries:
+      - github-ep
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+        dependency-type: "security"
+    
+  # Minor and patch updates - twice weekly
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 8
+    registries:
+      - github-ep
+    groups:
+      minor-patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+        exclude-patterns:
+          - "github.com/getsyntegrity/*"  # Exclude private repos from auto-updates
+    
+  # Major updates - weekly with manual review
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+    open-pull-requests-limit: 3
+    registries:
+      - github-ep
+    groups:
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+        exclude-patterns:
+          - "github.com/getsyntegrity/*"  # Exclude private repos from auto-updates
