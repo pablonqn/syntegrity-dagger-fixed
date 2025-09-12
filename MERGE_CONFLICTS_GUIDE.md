@@ -97,10 +97,10 @@ make build-release
 ```go
 module github.com/getsyntegrity/syntegrity-dagger
 
-go 1.24.2
+go 1.25.1
 
 require (
-    dagger.io/dagger v0.9.11
+    dagger.io/dagger v0.18.17
     github.com/getsyntegrity/go-kit-logger v0.0.0-20250828114729-566d9913c10b
     // ... otras dependencias esenciales
 )
