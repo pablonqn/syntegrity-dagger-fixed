@@ -339,12 +339,20 @@ func (c *CLI) executeStepLocally(ctx context.Context, flags *Flags) error {
 	return nil
 }
 
+// Version and build information - set at build time
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
+)
+
 // showVersion displays version information
 func (c *CLI) showVersion() {
-	fmt.Printf("Syntegrity Dagger v1.0.0\n")
+	fmt.Printf("Syntegrity Dagger %s\n", Version)
 	fmt.Printf("Go version: %s\n", runtime.Version())
 	fmt.Printf("OS/Arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("Build time: %s\n", "2024-01-01T00:00:00Z") // This would be set at build time
+	fmt.Printf("Build time: %s\n", BuildTime)
+	fmt.Printf("Git commit: %s\n", GitCommit)
 }
 
 func main() {
