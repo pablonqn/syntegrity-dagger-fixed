@@ -537,3 +537,5 @@ Temporary Items
 coverage.html
 coverage.txt
 
+coverage
+coverage/*

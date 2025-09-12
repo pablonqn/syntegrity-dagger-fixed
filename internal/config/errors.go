@@ -15,4 +15,4 @@ type Error struct {
 func (e Error) Error() string { return "Environment variable: " + e.Err.Error() }
 
 // Unwrap returns the underlying error for go error catching logic
-func (e *Error) Unwrap() error { return e.Err }
+func (e Error) Unwrap() error { return e.Err }

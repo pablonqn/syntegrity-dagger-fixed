@@ -8,15 +8,14 @@ import (
 	"strconv"
 	"strings"
 
-	"dagger.io/dagger"
 	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines"
 )
 
 type GoTester struct {
 	// Client is the Dagger client used for container operations.
-	Client *dagger.Client
+	Client pipelines.DaggerClient
 	// Src is the source directory of the cloned repository.
-	Src *dagger.Directory
+	Src pipelines.DaggerDirectory
 	// Config contains the configuration for the pipeline.
 	Config pipelines.Config
 	// MinCoverage is the minimum coverage percentage required for the tests.
@@ -41,8 +40,8 @@ func (g *GoTester) RunTests(ctx context.Context) error {
 		WithEnvVariable("GOPATH", "/go").
 		WithEnvVariable("GOCACHE", "/root/.cache/go-build")
 
-	testContainer := base.WithExec([]string{"go", "test", "./...", "-v", "-coverprofile=coverage.out"}).
-		WithExec([]string{"go", "tool", "cover", "-func=coverage.out"}, dagger.ContainerWithExecOpts{
+	testContainer := base.WithExec([]string{"go", "test", "./...", "-v", "-coverprofile=coverage.out"}, pipelines.DaggerContainerWithExecOpts{}).
+		WithExec([]string{"go", "tool", "cover", "-func=coverage.out"}, pipelines.DaggerContainerWithExecOpts{
 			RedirectStdout: "/tmp/coverage.txt",
 		})
 

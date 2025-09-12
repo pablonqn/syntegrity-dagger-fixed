@@ -20,26 +20,36 @@ import (
 //   - Src: The source directory of the cloned repository.
 //   - Cloner: The cloner used for cloning repositories.
 type SyntegrityInfraPipeline struct {
-	Client *dagger.Client
+	Client pipelines.DaggerClient
 	Config pipelines.Config
-	Src    *dagger.Directory
+	Src    pipelines.DaggerDirectory
 	Cloner shared.Cloner
 }
 
-// New creates a new instance of GoKitPipeline.
+// New creates a new instance of SyntegrityInfraPipeline.
 //
 // Parameters:
 //   - client: The Dagger client used for container operations.
 //   - cfg: The configuration for the pipeline.
 //
 // Returns:
-//   - A new instance of GoKitPipeline.
+//   - A new instance of SyntegrityInfraPipeline.
 func New(client *dagger.Client, cfg pipelines.Config) pipelines.Pipeline {
-	src := client.Host().Directory(".", dagger.HostDirectoryOpts{
-		Exclude: []string{"**/node_modules", "**/.git", "**/.dagger-cache"},
-	})
+	var daggerClient pipelines.DaggerClient
+	var src pipelines.DaggerDirectory
+
+	// Handle nil client gracefully
+	if client != nil {
+		// Convert real Dagger client to our interface using adapter
+		daggerClient = pipelines.NewDaggerAdapter(client)
+		src = daggerClient.Host().Directory(".", pipelines.DaggerHostDirectoryOpts{
+			Exclude: []string{"**/node_modules", "**/.git", "**/.dagger-cache"},
+		})
+	}
+	// If client is nil, all fields will remain nil
+
 	return &SyntegrityInfraPipeline{
-		Client: client,
+		Client: daggerClient,
 		Config: cfg,
 		Src:    src,
 	}
@@ -68,14 +78,32 @@ func (s *SyntegrityInfraPipeline) Name() string {
 
 func (s *SyntegrityInfraPipeline) Setup(ctx context.Context) error {
 	fmt.Println("🧪 Running go-kit tests syntegrity-infra.....")
+
+	// Check if client is nil
+	if s.Client == nil {
+		return fmt.Errorf("Setup method requires real Dagger client, not nil")
+	}
+
 	if s.Cloner != nil {
-		dir, err := s.Cloner.Clone(ctx, s.Client, shared.GitCloneOpts{})
+		// Extract real client from adapter
+		realClient := s.Client.(*pipelines.DaggerAdapter).GetRealClient()
+		_, err := s.Cloner.Clone(ctx, realClient, shared.GitCloneOpts{})
 		if err != nil {
 			return err
 		}
-		s.Src = dir
+		// Convert real directory to our interface
+		s.Src = pipelines.NewDaggerAdapter(realClient).Host().Directory(".", pipelines.DaggerHostDirectoryOpts{})
 	}
-	return shared.RunTestsWithCoverage(ctx, s.Client, s.Src, s.Config.Coverage)
+	// Extract real types for shared functions (only if using adapter, not mocks)
+	if adapter, ok := s.Client.(*pipelines.DaggerAdapter); ok {
+		realClient := adapter.GetRealClient()
+		if srcAdapter, ok := s.Src.(*pipelines.DaggerDirectoryAdapter); ok {
+			realSrc := srcAdapter.GetRealDirectory()
+			return shared.RunTestsWithCoverage(ctx, realClient, realSrc, s.Config.Coverage)
+		}
+	}
+	// For mocks, return an error indicating this requires real client
+	return fmt.Errorf("Setup method requires real Dagger client, not mock")
 }
 
 func (s *SyntegrityInfraPipeline) Push(_ context.Context) error {

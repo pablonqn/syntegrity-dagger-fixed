@@ -6,220 +6,347 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 
+	kitlog "github.com/getsyntegrity/go-kit-logger/pkg/logger"
+	"gitlab.com/syntegrity/syntegrity-infra/internal/app"
 	"gitlab.com/syntegrity/syntegrity-infra/internal/config"
-
-	"dagger.io/dagger"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines"
-	dockerGO "gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/docker-go"
-	goKit "gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/go-kit"
+	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
 )
 
-type stepHandler struct {
-	name     string
-	execute  func(context.Context, pipelines.Pipeline) error
-	requires func(pipelines.Pipeline) bool
-	skip     func(pipelines.Config) bool
+// CLI represents the command line interface for the application.
+type CLI struct {
+	app *app.App
 }
 
-var stepHandlers = map[string]stepHandler{
-	"setup": {
-		name: "setup",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Setupper).Setup(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Setupper)
-			return ok
-		},
-		skip: func(_ pipelines.Config) bool {
-			return false
-		},
-	},
-	"build": {
-		name: "build",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Builder).Build(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Builder)
-			return ok
-		},
-		skip: func(cfg pipelines.Config) bool {
-			return cfg.OnlyTest
-		},
-	},
-	"test": {
-		name: "test",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Tester).Test(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Tester)
-			return ok
-		},
-		skip: func(cfg pipelines.Config) bool {
-			return cfg.OnlyBuild
-		},
-	},
-	"tag": {
-		name: "tag",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Tagger).Tag(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Tagger)
-			return ok
-		},
-		skip: func(_ pipelines.Config) bool {
-			return false
-		},
-	},
-	"package": {
-		name: "package",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Packager).Package(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Packager)
-			return ok
-		},
-		skip: func(_ pipelines.Config) bool {
-			return false
-		},
-	},
-	"push": {
-		name: "push",
-		execute: func(ctx context.Context, p pipelines.Pipeline) error {
-			return p.(pipelines.Pusher).Push(ctx)
-		},
-		requires: func(p pipelines.Pipeline) bool {
-			_, ok := p.(pipelines.Pusher)
-			return ok
-		},
-		skip: func(cfg pipelines.Config) bool {
-			return cfg.SkipPush
-		},
-	},
+// NewCLI creates a new CLI instance.
+func NewCLI() *CLI {
+	return &CLI{}
 }
 
-func executeStep(ctx context.Context, pipe pipelines.Pipeline, cfg pipelines.Config, step string) error {
-	handler, ok := stepHandlers[step]
-	if !ok {
-		return fmt.Errorf("invalid step: %s", step)
-	}
+// Run executes the CLI with the given arguments.
+func (c *CLI) Run(args []string) error {
+	ctx := context.Background()
 
-	if !handler.requires(pipe) {
-		return fmt.Errorf("pipeline does not support step: %s", step)
-	}
+	// Parse command line flags
+	flags := c.parseFlags(args)
 
-	if handler.skip(cfg) {
+	// Handle version flag
+	if flags.version {
+		c.showVersion()
 		return nil
 	}
 
-	fmt.Printf("➡️  step: %s\n", handler.name)
-	if err := handler.execute(ctx, pipe); err != nil {
-		return fmt.Errorf("%s failed: %w", handler.name, err)
+	// Load configuration
+	cfg, err := config.NewConfigurationWrapper()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	return nil
-}
-
-func executePipeline(ctx context.Context, pipe pipelines.Pipeline, cfg pipelines.Config) {
-	steps := []string{"setup", "build", "test", "tag", "package", "push"}
-	for _, step := range steps {
-		if err := executeStep(ctx, pipe, cfg, step); err != nil {
-			log.Fatalf("❌ %v", err)
-		}
-	}
-	fmt.Println("✅ pipeline completed.")
-}
-
-func executeSingleStep(ctx context.Context, pipe pipelines.Pipeline, cfg pipelines.Config, step string) {
-	if step != "setup" {
-		if err := executeStep(ctx, pipe, cfg, "setup"); err != nil {
-			log.Fatalf("❌ %v", err)
+	// Load YAML configuration if specified
+	if flags.configFile != "" {
+		err = c.loadYAMLConfig(cfg, flags.configFile)
+		if err != nil {
+			return fmt.Errorf("failed to load YAML configuration: %w", err)
 		}
 	}
 
-	if err := executeStep(ctx, pipe, cfg, step); err != nil {
-		log.Fatalf("❌ %v", err)
+	// Override configuration with CLI flags
+	c.overrideConfig(cfg, flags)
+
+	// Initialize the application
+	err = app.Initialize(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize application: %w", err)
 	}
-	fmt.Printf("✅ Step '%s' ejecutado correctamente.\n", step)
+	defer app.Reset()
+
+	// Log successful initialization using the global logger
+	kitlog.L().Info("Syntegrity Dagger initialized successfully",
+		"pipeline", flags.pipelineName,
+		"environment", flags.env,
+		"verbose", flags.verbose)
+
+	// Get the application instance
+	c.app = app.NewApp(app.GetContainer())
+
+	// Handle special commands
+	if flags.listPipelines {
+		return c.listAvailablePipelines(ctx)
+	}
+
+	if flags.listSteps {
+		return c.listAvailableSteps(ctx, flags)
+	}
+
+	// Execute based on flags
+	if flags.step != "" {
+		return c.executeSingleStep(ctx, flags)
+	}
+
+	return c.executePipeline(ctx, flags)
 }
 
-func main() {
+// Flags represents the command line flags.
+type Flags struct {
+	pipelineName  string
+	coverage      float64
+	branch        string
+	env           string
+	skipPush      bool
+	onlyBuild     bool
+	onlyTest      bool
+	verbose       bool
+	gitRef        string
+	step          string
+	gitAuth       string
+	listSteps     bool
+	listPipelines bool
+	configFile    string
+	version       bool
+	local         bool
+}
+
+// parseFlags parses command line arguments.
+func (c *CLI) parseFlags(args []string) *Flags {
+	fs := flag.NewFlagSet("syntegrity-dagger", flag.ExitOnError)
+
 	defaultGitAuth := "ssh"
 	if os.Getenv("CI_JOB_TOKEN") != "" {
 		defaultGitAuth = "https"
 	}
 
-	var (
-		pipelineName = flag.String("pipeline", "go-kit", "Name of the pipeline to be executed")
-		coverage     = flag.Float64("coverage", 90, "Minimum coverage percentage required (in: 90 for 90%)")
-		branch       = flag.String("branch", "develop", "branch name")
-		env          = flag.String("env", "dev", "Environment: dev, staging, prod")
+	flags := &Flags{}
 
-		skipPush  = flag.Bool("skip-push", false, "Skip image push")
-		onlyBuild = flag.Bool("only-build", false, "Run build only")
-		onlyTest  = flag.Bool("only-test", false, "Run only tests")
-		verbose   = flag.Bool("verbose", false, "Verbose mode")
-		gitRef    = flag.String("git-ref", "main", "Branch name (default: main)")
-		step      = flag.String("step", "", "Individual pipeline step to execute (setup, build, test, tag, package, push)")
-		gitAuth   = flag.String("git-auth", defaultGitAuth, "Git authentication method: ssh or https")
-	)
+	fs.StringVar(&flags.pipelineName, "pipeline", "go-kit", "Name of the pipeline to be executed")
+	fs.Float64Var(&flags.coverage, "coverage", 90, "Minimum coverage percentage required (in: 90 for 90%)")
+	fs.StringVar(&flags.branch, "branch", "develop", "Branch name")
+	fs.StringVar(&flags.env, "env", "dev", "Environment: dev, staging, prod")
+	fs.BoolVar(&flags.skipPush, "skip-push", false, "Skip image push")
+	fs.BoolVar(&flags.onlyBuild, "only-build", false, "Run build only")
+	fs.BoolVar(&flags.onlyTest, "only-test", false, "Run only tests")
+	fs.BoolVar(&flags.verbose, "verbose", false, "Verbose mode")
+	fs.StringVar(&flags.gitRef, "git-ref", "main", "Branch name (default: main)")
+	fs.StringVar(&flags.step, "step", "", "Individual pipeline step to execute")
+	fs.StringVar(&flags.gitAuth, "git-auth", defaultGitAuth, "Git authentication method: ssh or https")
+	fs.BoolVar(&flags.listSteps, "list-steps", false, "List available steps for a pipeline")
+	fs.BoolVar(&flags.listPipelines, "list-pipelines", false, "List available pipelines")
+	fs.StringVar(&flags.configFile, "config", ".syntegrity-dagger.yml", "Configuration file path")
+	fs.BoolVar(&flags.version, "version", false, "Show version information")
+	fs.BoolVar(&flags.local, "local", false, "Run pipeline locally without Docker")
 
-	flag.Parse()
+	fs.Parse(args)
+	return flags
+}
 
-	fmt.Println("Pipeline:", *pipelineName)
-	fmt.Println("Git ref:", *gitRef)
-	fmt.Println("Cobertura:", *coverage)
-
-	ctx := context.Background()
-
-	cfg, err := config.Init()
-	if err != nil {
-		log.Fatal(err)
+// overrideConfig overrides configuration with CLI flags.
+func (c *CLI) overrideConfig(cfg interfaces.Configuration, flags *Flags) {
+	// Override configuration values with CLI flags
+	if flags.coverage != 90 {
+		cfg.Set("pipeline.coverage", flags.coverage)
 	}
-	client, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stdout))
-	if err != nil {
-		log.Fatalf("❌ error connecting to Dagger: %v", err)
+	if flags.env != "dev" {
+		cfg.Set("environment", flags.env)
 	}
-	defer func(client *dagger.Client) {
-		err = client.Close()
+	if flags.skipPush {
+		cfg.Set("pipeline.skip_push", true)
+	}
+	if flags.onlyBuild {
+		cfg.Set("pipeline.only_build", true)
+	}
+	if flags.onlyTest {
+		cfg.Set("pipeline.only_test", true)
+	}
+	if flags.verbose {
+		cfg.Set("pipeline.verbose", true)
+	}
+	if flags.gitRef != "main" {
+		cfg.Set("git.ref", flags.gitRef)
+	}
+	if flags.gitAuth != "ssh" {
+		cfg.Set("git.protocol", flags.gitAuth)
+	}
+}
+
+// executePipeline executes a complete pipeline.
+func (c *CLI) executePipeline(ctx context.Context, flags *Flags) error {
+	if flags.local {
+		fmt.Printf("🏠 Running pipeline locally: %s (%s)\n", flags.pipelineName, flags.env)
+		fmt.Printf("📊 Coverage threshold: %.1f%%\n", flags.coverage)
+		fmt.Printf("🌿 Git ref: %s\n", flags.gitRef)
+		return c.executePipelineLocally(ctx, flags)
+	}
+
+	fmt.Printf("🚀 Running pipeline: %s (%s)\n", flags.pipelineName, flags.env)
+	fmt.Printf("📊 Coverage threshold: %.1f%%\n", flags.coverage)
+	fmt.Printf("🌿 Git ref: %s\n", flags.gitRef)
+
+	return c.app.RunPipeline(ctx, flags.pipelineName)
+}
+
+// executeSingleStep executes a single pipeline step.
+func (c *CLI) executeSingleStep(ctx context.Context, flags *Flags) error {
+	if flags.local {
+		fmt.Printf("🏠 Executing step locally '%s' in pipeline: %s\n", flags.step, flags.pipelineName)
+		return c.executeStepLocally(ctx, flags)
+	}
+
+	fmt.Printf("🎯 Executing step '%s' in pipeline: %s\n", flags.step, flags.pipelineName)
+
+	return c.app.RunPipelineStep(ctx, flags.pipelineName, flags.step)
+}
+
+// listAvailableSteps lists available steps for a pipeline.
+func (c *CLI) listAvailableSteps(ctx context.Context, flags *Flags) error {
+	container := c.app.GetContainer()
+	stepRegistry, err := container.Get("stepRegistry")
+	if err != nil {
+		return fmt.Errorf("failed to get step registry: %w", err)
+	}
+
+	registry := stepRegistry.(interfaces.StepRegistry)
+	steps := registry.ListSteps()
+
+	fmt.Printf("Available steps for pipeline '%s':\n", flags.pipelineName)
+
+	for i, step := range steps {
+		config, err := registry.GetStepConfig(step)
 		if err != nil {
-			log.Printf("❌ error closing Dagger: %v", err)
+			fmt.Printf("  %d. %s (error getting config)\n", i+1, step)
+			continue
 		}
-	}(client)
 
-	pipelinesCfg := pipelines.NewConfig(
-		pipelines.WithEnv(*env),
-		pipelines.WithSkipPush(*skipPush),
-		pipelines.WithOnlyBuild(*onlyBuild),
-		pipelines.WithOnlyTest(*onlyTest),
-		pipelines.WithVerbose(*verbose),
-		pipelines.WithGitGitProtocol(*gitAuth),
-		pipelines.WithCoverage(*coverage),
-		pipelines.WithBranch(*branch),
-		pipelines.WithRegistry(cfg.RegistryBaseURL, cfg.RegistryPass),
-		pipelines.WithRegistryUser(cfg.RegistryUser),
-		pipelines.WithGoVersion(cfg.GoVersion),
-	)
-
-	registry := pipelines.NewRegistry()
-	registry.Register("go-kit", goKit.New)
-	registry.Register("docker-go", dockerGO.New)
-
-	p, err := registry.Get(*pipelineName, client, pipelinesCfg)
-	if err != nil {
-		log.Printf("❌ pipeline does not exit: %v", err)
-		return
+		fmt.Printf("  %d. %s - %s\n", i+1, step, config.Description)
+		if config.Required {
+			fmt.Printf("     (Required: Yes, Timeout: %v)\n", config.Timeout)
+		} else {
+			fmt.Printf("     (Required: No, Timeout: %v)\n", config.Timeout)
+		}
 	}
-	fmt.Printf("🚀 running pipeline: %s (%s)\n", p.Name(), pipelinesCfg.Env)
 
-	if *step != "" {
-		executeSingleStep(ctx, p, pipelinesCfg, *step)
-	} else {
-		executePipeline(ctx, p, pipelinesCfg)
+	return nil
+}
+
+// listAvailablePipelines lists available pipelines.
+func (c *CLI) listAvailablePipelines(ctx context.Context) error {
+	container := c.app.GetContainer()
+	registry, err := container.Get("pipelineRegistry")
+	if err != nil {
+		return fmt.Errorf("failed to get pipeline registry: %w", err)
+	}
+
+	pipelineRegistry := registry.(interfaces.PipelineRegistry)
+	pipelines := pipelineRegistry.List()
+
+	fmt.Println("Available pipelines:")
+	for i, pipelineName := range pipelines {
+		fmt.Printf("  %d. %s\n", i+1, pipelineName)
+	}
+
+	return nil
+}
+
+// loadYAMLConfig loads and applies YAML configuration
+func (c *CLI) loadYAMLConfig(cfg interfaces.Configuration, configFile string) error {
+	parser := config.NewYAMLParser()
+
+	// Parse YAML file
+	yamlConfig, err := parser.ParseFile(configFile)
+	if err != nil {
+		return fmt.Errorf("failed to parse YAML file: %w", err)
+	}
+
+	// Validate configuration
+	if err := parser.ValidateConfig(yamlConfig); err != nil {
+		return fmt.Errorf("invalid YAML configuration: %w", err)
+	}
+
+	// Apply to main configuration
+	if err := parser.ApplyToConfiguration(yamlConfig, cfg); err != nil {
+		return fmt.Errorf("failed to apply YAML configuration: %w", err)
+	}
+
+	fmt.Printf("📋 Loaded configuration from: %s\n", configFile)
+	fmt.Printf("🎯 Pipeline: %s\n", yamlConfig.Pipeline.Name)
+	fmt.Printf("📝 Steps: %v\n", yamlConfig.Pipeline.Steps)
+
+	return nil
+}
+
+// executePipelineLocally executes a pipeline locally without Docker
+func (c *CLI) executePipelineLocally(ctx context.Context, flags *Flags) error {
+	// Get logger and config from the app
+	container := c.app.GetContainer()
+	logger, err := container.GetLogger()
+	if err != nil {
+		return fmt.Errorf("failed to get logger: %w", err)
+	}
+
+	config := container.GetConfiguration()
+
+	// Create local executor
+	localExecutor := app.NewLocalExecutor(logger, config)
+
+	// Get pipeline steps from configuration
+	steps := []string{"setup", "build", "test"}
+	if flags.onlyBuild {
+		steps = []string{"setup", "build"}
+	} else if flags.onlyTest {
+		steps = []string{"setup", "test"}
+	}
+
+	// Execute steps in order
+	for _, step := range steps {
+		logger.Info("Running pipeline step", "pipeline", flags.pipelineName, "step", step)
+
+		if err := localExecutor.ExecuteStep(ctx, step); err != nil {
+			return fmt.Errorf("pipeline step %s failed: %w", step, err)
+		}
+
+		logger.Info("Pipeline step completed", "step", step)
+	}
+
+	logger.Info("Pipeline completed successfully", "name", flags.pipelineName)
+	return nil
+}
+
+// executeStepLocally executes a single step locally without Docker
+func (c *CLI) executeStepLocally(ctx context.Context, flags *Flags) error {
+	// Get logger and config from the app
+	container := c.app.GetContainer()
+	logger, err := container.GetLogger()
+	if err != nil {
+		return fmt.Errorf("failed to get logger: %w", err)
+	}
+
+	config := container.GetConfiguration()
+
+	// Create local executor
+	localExecutor := app.NewLocalExecutor(logger, config)
+
+	// Execute the step
+	logger.Info("Running pipeline step", "pipeline", flags.pipelineName, "step", flags.step)
+
+	if err := localExecutor.ExecuteStep(ctx, flags.step); err != nil {
+		return fmt.Errorf("pipeline step %s failed: %w", flags.step, err)
+	}
+
+	logger.Info("Pipeline step completed", "step", flags.step)
+	return nil
+}
+
+// showVersion displays version information
+func (c *CLI) showVersion() {
+	fmt.Printf("Syntegrity Dagger v1.0.0\n")
+	fmt.Printf("Go version: %s\n", runtime.Version())
+	fmt.Printf("OS/Arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("Build time: %s\n", "2024-01-01T00:00:00Z") // This would be set at build time
+}
+
+func main() {
+	cli := NewCLI()
+
+	if err := cli.Run(os.Args[1:]); err != nil {
+		log.Fatalf("❌ %v", err)
 	}
 }

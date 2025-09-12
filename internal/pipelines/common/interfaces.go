@@ -1,5 +1,5 @@
-// Package common provides shared interfaces for pipeline components.
-package common
+// Package interfaces provides shared interfaces for pipeline components.
+package interfaces
 
 import "context"
 

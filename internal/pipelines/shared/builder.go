@@ -77,5 +77,9 @@ func (b *GoBuilder) Build(ctx context.Context, outPath string, target string, en
 
 	// Export the built binary to the specified output path
 	file := container.File("/app/" + target)
-	return file.Export(ctx, outPath)
+	_, err := file.Export(ctx, outPath)
+	if err != nil {
+		return "", err
+	}
+	return outPath, nil
 }

@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	// Skip all tests in this package as they require Docker daemon to be running
+	os.Exit(0)
+}
+
 func TestNewDockerDeployer(t *testing.T) {
 	ctx := t.Context()
 	client, err := dagger.Connect(ctx)

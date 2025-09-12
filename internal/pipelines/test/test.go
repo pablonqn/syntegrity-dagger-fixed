@@ -19,9 +19,23 @@ type Testable interface {
 func New(client *dagger.Client, src *dagger.Directory, cfg pipelines.Config, language string) Testable {
 	switch language {
 	case "go":
+		// Only create adapter if client is not nil
+		if client != nil {
+			// Convert real Dagger client to our interface using adapter
+			daggerClient := pipelines.NewDaggerAdapter(client)
+			// Convert real Dagger directory to our interface using adapter
+			daggerSrc := pipelines.NewDaggerAdapter(client).Host().Directory(".", pipelines.DaggerHostDirectoryOpts{})
+			return &GoTester{
+				Client:      daggerClient,
+				Src:         daggerSrc,
+				Config:      cfg,
+				MinCoverage: cfg.Coverage,
+			}
+		}
+		// For nil client, return a GoTester with nil client (for testing)
 		return &GoTester{
-			Client:      client,
-			Src:         src,
+			Client:      nil,
+			Src:         nil,
 			Config:      cfg,
 			MinCoverage: cfg.Coverage,
 		}

@@ -1,0 +1,33 @@
+pipeline:
+  name: "tenant-svc"
+  environment: "production"
+  coverage: 85.0
+  go_version: "1.25.1"
+
+# Steps para aplicación con container
+steps:
+  - setup
+  - build
+  - test
+  - lint
+  - security
+  - tag
+  - package  # Crear container Docker
+  - push     # Subir a GitHub Container Registry
+
+registry:
+  base_url: "ghcr.io/syntegrity"
+  image: "tenant-svc"
+  user: "${GITHUB_TOKEN}"
+
+security:
+  enable_vuln_check: true
+  enable_linting: true
+  
+release:
+  enabled: true
+  use_goreleaser: false
+  create_github_release: true
+
+logging:
+  level: "info"

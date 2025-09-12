@@ -45,7 +45,7 @@ func (p *DockerGoPipeline) Test(ctx context.Context) error {
 	// Run tests
 	_, err := goContainer.
 		WithExec([]string{"go", "test", "-v", "./..."}).
-		ExitCode(ctx)
+		Sync(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run tests: %w", err)
 	}
