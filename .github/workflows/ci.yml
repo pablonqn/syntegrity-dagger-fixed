@@ -5,6 +5,7 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.24.0'
@@ -27,6 +28,7 @@ jobs:
         echo "Event: ${{ github.event_name }}"
         echo "Ref: ${{ github.ref }}"
         echo "Base ref: ${{ github.base_ref }}"
+        echo "Commit message: ${{ github.event.head_commit.message }}"
         
         # Determine pipeline type based on context
         if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -36,11 +38,12 @@ jobs:
           echo "release=false" >> $GITHUB_OUTPUT
           echo "📋 Pipeline: Pull Request (full pipeline)"
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          # Always run full pipeline for main/develop branches for consistency
           echo "type=main" >> $GITHUB_OUTPUT
           echo "security=true" >> $GITHUB_OUTPUT
           echo "coverage=true" >> $GITHUB_OUTPUT
           echo "release=false" >> $GITHUB_OUTPUT
-          echo "📋 Pipeline: Main branch (full pipeline)"
+          echo "📋 Pipeline: Main/Develop branch (full pipeline for consistency)"
         else
           echo "type=feature" >> $GITHUB_OUTPUT
           echo "security=false" >> $GITHUB_OUTPUT
@@ -234,7 +237,7 @@ jobs:
           echo "📋 Feature branch: Running basic tests"
           go test -race ./...
         else
-          echo "📋 Main/PR: Running full test suite with coverage"
+          echo "📋 Main/Develop/PR: Running full test suite with coverage"
           go test -race -coverprofile=coverage.out ./...
         fi
       

@@ -2,8 +2,6 @@ module github.com/getsyntegrity/syntegrity-dagger
 
 go 1.24.0
 
-toolchain go1.24.7
-
 require (
 	dagger.io/dagger v0.9.11
 	github.com/joho/godotenv v1.5.1
@@ -13,7 +11,7 @@ require (
 	github.com/onsi/gomega v1.36.3
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
-	golang.org/x/net v0.43.0
+	golang.org/x/net v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -38,9 +36,9 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.30 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 )
