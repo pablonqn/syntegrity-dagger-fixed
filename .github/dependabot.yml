@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # Enable version updates for Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "getsyntegrity/team"
+    assignees:
+      - "getsyntegrity/team"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    ignore:
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "dagger.io/dagger"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "github.com/onsi/ginkgo/v2"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "github.com/onsi/gomega"
+        update-types: ["version-update:semver-major"]
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "getsyntegrity/team"
+    assignees:
+      - "getsyntegrity/team"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
