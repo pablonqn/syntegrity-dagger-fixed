@@ -51,6 +51,8 @@ jobs:
     - name: Clean Go module cache
       run: |
         # Clean any existing module cache to avoid conflicts
+        # First, make files writable to avoid permission errors
+        chmod -R u+w ~/go/pkg/mod 2>/dev/null || true
         rm -rf ~/go/pkg/mod
         mkdir -p ~/go/pkg/mod
         
@@ -107,6 +109,8 @@ jobs:
     - name: Clean Go module cache
       run: |
         # Clean any existing module cache to avoid conflicts
+        # First, make files writable to avoid permission errors
+        chmod -R u+w ~/go/pkg/mod 2>/dev/null || true
         rm -rf ~/go/pkg/mod
         mkdir -p ~/go/pkg/mod
         
@@ -186,6 +190,8 @@ jobs:
     - name: Clean Go module cache
       run: |
         # Clean any existing module cache to avoid conflicts
+        # First, make files writable to avoid permission errors
+        chmod -R u+w ~/go/pkg/mod 2>/dev/null || true
         rm -rf ~/go/pkg/mod
         mkdir -p ~/go/pkg/mod
         
@@ -297,6 +303,8 @@ jobs:
     - name: Clean Go module cache
       run: |
         # Clean any existing module cache to avoid conflicts
+        # First, make files writable to avoid permission errors
+        chmod -R u+w ~/go/pkg/mod 2>/dev/null || true
         rm -rf ~/go/pkg/mod
         mkdir -p ~/go/pkg/mod
         
@@ -357,6 +365,8 @@ jobs:
     - name: Clean Go module cache
       run: |
         # Clean any existing module cache to avoid conflicts
+        # First, make files writable to avoid permission errors
+        chmod -R u+w ~/go/pkg/mod 2>/dev/null || true
         rm -rf ~/go/pkg/mod
         mkdir -p ~/go/pkg/mod
         
