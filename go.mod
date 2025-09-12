@@ -1,10 +1,9 @@
 module github.com/getsyntegrity/syntegrity-dagger
 
-go 1.24.2
+go 1.24.0
 
 require (
 	dagger.io/dagger v0.9.11
-	github.com/getsyntegrity/go-kit-logger v0.0.0-20250828114729-566d9913c10b
 	github.com/joho/godotenv v1.5.1
 	github.com/knadh/koanf/providers/env v1.1.0
 	github.com/knadh/koanf/v2 v2.2.2
@@ -33,7 +32,6 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
