@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
-	kitlog "github.com/getsyntegrity/go-kit-logger/pkg/logger"
 	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
@@ -35,7 +35,7 @@ func Initialize(ctx context.Context, cfg interfaces.Configuration) error {
 
 		// Initialize and set global logger
 		logger := container.CreateLogger()
-		kitlog.SetGlobal(logger)
+		slog.SetDefault(logger)
 
 		if err := container.Start(ctx); err != nil {
 			initErr = fmt.Errorf("failed to start container: %w", err)
