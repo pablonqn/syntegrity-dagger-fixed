@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines"
+	"github.com/getsyntegrity/syntegrity-dagger/mocks"
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines"
-	"gitlab.com/syntegrity/syntegrity-infra/mocks"
 	"go.uber.org/mock/gomock"
 )
 

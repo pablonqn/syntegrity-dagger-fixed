@@ -10,11 +10,11 @@ import (
 	"dagger.io/dagger"
 	gokitlogger "github.com/getsyntegrity/go-kit-logger/pkg/logger"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines"
-	docker_go "gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/docker-go"
-	gokit "gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/go-kit"
-	infra "gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/infra"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines"
+	docker_go "github.com/getsyntegrity/syntegrity-dagger/internal/pipelines/docker-go"
+	gokit "github.com/getsyntegrity/syntegrity-dagger/internal/pipelines/go-kit"
+	infra "github.com/getsyntegrity/syntegrity-dagger/internal/pipelines/infra"
 )
 
 // Static errors for err113 compliance.

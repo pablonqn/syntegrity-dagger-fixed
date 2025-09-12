@@ -11,7 +11,7 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	koanfv2 "github.com/knadh/koanf/v2"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // Static errors for err113 compliance.

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	kitlog "github.com/getsyntegrity/go-kit-logger/pkg/logger"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 var (

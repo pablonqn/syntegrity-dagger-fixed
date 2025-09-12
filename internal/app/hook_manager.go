@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // HookManager implements the HookManager interface for managing pipeline hooks.

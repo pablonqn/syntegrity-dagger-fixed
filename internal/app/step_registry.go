@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // StepRegistry implements the StepRegistry interface for managing pipeline steps.

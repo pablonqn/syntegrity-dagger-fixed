@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/app"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/config"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/app"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/config"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // Example of how to use the dynamic pipeline system

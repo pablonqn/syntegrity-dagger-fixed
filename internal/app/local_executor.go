@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // LocalExecutor executes pipeline steps locally without Docker

@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"dagger.io/dagger"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/pipelines/shared"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/pipelines/shared"
 )
 
 type DockerGoPipeline struct {

@@ -9,9 +9,9 @@ import (
 	"runtime"
 
 	kitlog "github.com/getsyntegrity/go-kit-logger/pkg/logger"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/app"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/config"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/app"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/config"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // CLI represents the command line interface for the application.

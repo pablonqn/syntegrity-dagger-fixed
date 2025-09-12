@@ -7,7 +7,7 @@ import (
 
 	"dagger.io/dagger"
 
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
 )
 
 // BaseStepHandler provides common functionality for all step handlers.

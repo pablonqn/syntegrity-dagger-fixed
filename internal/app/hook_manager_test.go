@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/getsyntegrity/syntegrity-dagger/internal/interfaces"
+	"github.com/getsyntegrity/syntegrity-dagger/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/syntegrity/syntegrity-infra/internal/interfaces"
-	"gitlab.com/syntegrity/syntegrity-infra/mocks"
 	"go.uber.org/mock/gomock"
 )
 
