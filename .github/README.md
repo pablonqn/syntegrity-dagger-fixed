@@ -52,7 +52,7 @@ Ejecuta:
 ## Configuración
 
 ### Secrets Requeridos
-- `GITHUB_TOKEN`: Token automático de GitHub (ya configurado)
+- `ORG_CHECKOUT_TOKEN`: Personal Access Token (PAT) de la organización con permisos de repositorio
 
 ### Variables de Entorno
 - `GO_VERSION`: Versión de Go (1.25.1)

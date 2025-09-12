@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -37,6 +39,11 @@ jobs:
       run: |
         go mod download
         go mod verify
+        go mod tidy
+      env:
+        GOPRIVATE: gitlab.com/syntegrity/*
+        GONOPROXY: gitlab.com/syntegrity/*
+        GONOSUMDB: gitlab.com/syntegrity/*
 
     - name: Install golangci-lint
       run: |
@@ -58,6 +65,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -78,6 +87,11 @@ jobs:
       run: |
         go mod download
         go mod verify
+        go mod tidy
+      env:
+        GOPRIVATE: gitlab.com/syntegrity/*
+        GONOPROXY: gitlab.com/syntegrity/*
+        GONOSUMDB: gitlab.com/syntegrity/*
 
     - name: Run tests
       run: |
@@ -91,6 +105,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -111,6 +127,11 @@ jobs:
       run: |
         go mod download
         go mod verify
+        go mod tidy
+      env:
+        GOPRIVATE: gitlab.com/syntegrity/*
+        GONOPROXY: gitlab.com/syntegrity/*
+        GONOSUMDB: gitlab.com/syntegrity/*
 
     - name: Build
       run: |
@@ -130,6 +151,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.ORG_CHECKOUT_TOKEN }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
