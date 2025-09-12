@@ -74,6 +74,13 @@ jobs:
       
     - name: Verify dependencies
       run: go mod verify
+      
+    - name: Upload Go modules as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: go-modules
+        path: ~/go/pkg/mod
+        retention-days: 1
 
   # Stage 2: Linting
   lint:
@@ -209,7 +216,7 @@ jobs:
     - name: Run tests with coverage
       run: |
         go test -race -coverprofile=coverage.out -covermode=atomic \
-          ./pkg/...
+          ./internal/... ./tests/...
         
     - name: Generate coverage report
       run: |
