@@ -1,6 +1,18 @@
-# Syntegrity Dagger
+# Syntegrity Dagger (Fixed Version)
 
 A unified CI/CD pipeline library for Go projects, built on top of Dagger SDK. Syntegrity Dagger provides standardized, reusable pipelines that can be easily integrated into any Go project's CI/CD workflow.
+
+## 🔧 **IMPORTANT: This is a Fixed Version**
+
+This repository contains a **critical fix** for the SSH/HTTPS protocol configuration issue in the original syntegrity-dagger. 
+
+**What's Fixed:**
+- ✅ YAML `git.protocol: "https"` configuration now works
+- ✅ CLI `-git-auth="https"` flag now works  
+- ✅ Pipeline correctly uses HTTPSCloner when configured
+- ✅ No more SSH key requirements for HTTPS repositories
+
+**See [FIX_SSH_PROTOCOL.md](./FIX_SSH_PROTOCOL.md) for detailed documentation of the fix.**
 
 ## 🚀 Features
 
